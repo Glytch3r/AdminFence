@@ -1,10 +1,9 @@
-AdminFence = AdminFence or {}
 MiniToolkitPanel = MiniToolkitPanel or {}
 MiniToolkitPanel.__index = MiniToolkitPanel
 
 function MiniToolkitPanel:setTitle(newTitle) 
-    if AdminFence.window then
-        AdminFence.window:setTitle(newTitle or self.title)
+    if self.window then
+        self.window:setTitle(newTitle or self.title)
     end
 end
 
@@ -18,13 +17,147 @@ function MiniToolkitPanel:new(x, y, width, height, title)
     o.x = x
     o.y = y
     o.title = title or "Mini Toolkit"
-    o.lastZoneCount = 0
-    o.lastSelectedIndex = -1
-    o.lastSelectedName = ""
     o.updateTimer = 0
     o.updateInterval = 30
+    o.window = nil
     o:buildWindow()
     return o
+end
+
+function MiniToolkitPanel:addFeature(textFunc, callback, sprite, colorFunc, rowIndex, featureId)
+    rowIndex = rowIndex or 1
+    self.rows[rowIndex] = self.rows[rowIndex] or {}
+    local btn = {
+        textFunc = textFunc,
+        callback = callback,
+        sprite = sprite,
+        colorFunc = colorFunc,
+        active = false,
+        tooltipFunc = nil,
+        featureId = featureId,
+        toggle = false
+    }
+    table.insert(self.rows[rowIndex], btn)
+end
+
+function MiniToolkitPanel:refreshButtons()
+    if not self.window then return end
+    
+    local childrenToRemove = {}
+    for i = 1, #self.window.children do
+        local child = self.window.children[i]
+        if child ~= self.window.closeButton then
+            table.insert(childrenToRemove, child)
+        end
+    end
+    
+    for _, child in ipairs(childrenToRemove) do
+        self.window:removeChild(child)
+        if child.destroy then child:destroy() end
+    end
+    
+    self.window:clearChildren()
+    if self.window.closeButton then
+        self.window:addChild(self.window.closeButton)
+    end
+    
+    local th = self.window:titleBarHeight()
+    local yOffset = th
+    local maxWidth = 0
+    
+    for rowIndex = 1, 10 do
+        local row = self.rows[rowIndex]
+        if row and #row > 0 then
+            local xOffset = 4
+            for _, btn in ipairs(row) do
+                if btn then
+                    local b = ISButton:new(xOffset, yOffset, self.buttonSize, self.buttonSize, "", nil, nil)
+                    b:initialise()
+                    b.borderColor = {r=0,g=0,b=0,a=0}
+                    
+                    local bgColor
+                    if type(btn.colorFunc) == "function" then
+                        bgColor = btn.colorFunc()
+                    else
+                        bgColor = btn.colorFunc
+                    end
+                    b.backgroundColor = bgColor or {r=0,g=0,b=0,a=0}
+                    b.backgroundColorMouseOver = {r=0,g=1,b=0,a=1}
+                    
+                    if btn.sprite then b:setImage(getTexture(btn.sprite)) end
+                    
+                    local tooltip = nil
+                    if btn.tooltipFunc then
+                        tooltip = btn.tooltipFunc()
+                    elseif btn.tooltip then
+                        tooltip = btn.tooltip
+                    else
+                        tooltip = btn.textFunc and btn.textFunc() or ""
+                    end
+                    if tooltip and tooltip ~= "" then 
+                        b:setTooltip(tooltip) 
+                    end
+                    
+                    b:setOnClick(function(button)
+                        if btn.toggle then
+                            btn.active = not btn.active
+                            local newColor = type(btn.colorFunc) == "function" and btn.colorFunc() or btn.colorFunc
+                            button.backgroundColor = newColor or {r=0,g=0,b=0,a=0}
+                        end
+                        if btn.callback then btn.callback() end
+                    end)
+                    
+                    self.window:addChild(b)
+                    xOffset = xOffset + self.buttonSize + self.spacing
+                end
+            end
+            maxWidth = math.max(maxWidth, xOffset + 4)
+            yOffset = yOffset + self.buttonSize + self.spacing
+        end
+    end
+    
+    self.window:setWidth(maxWidth)
+    self.window:setHeight(yOffset + 4)
+    
+    if self.window.NewTitle and self.window.NewTitle ~= "" then
+        self:setTitle(self.window.NewTitle)
+    end
+end
+
+function MiniToolkitPanel:buildWindow()
+    local minWidth = math.max(160, #self.title*8 + 50)
+    self.window = ISCollapsableWindow:new(self.x, self.y, minWidth+15, self.buttonSize + 20)
+    self.window.collapseButton = nil
+    
+    function self.window:createChildren()
+        ISCollapsableWindow.createChildren(self)
+        if self.collapseButton then
+            self:removeChild(self.collapseButton)
+            self.collapseButton = nil
+        end
+        if self.closeButton then
+            self:removeChild(self.closeButton)
+            self.closeButton = nil
+        end
+    end
+    
+    function self.window:update()
+        ISCollapsableWindow.update(self)
+        if self.panelRef and self.panelRef.onUpdate then
+            self.panelRef:onUpdate()
+        end
+    end
+    
+    self.window:initialise()
+    if self.window.closeButton then
+        self.window.closeButton:setVisible(false);
+    end
+    self.window:addToUIManager()
+    self.window.resizable = false
+    self.window:setTitle(self.title)
+    self.window.defaultTitle = self.title
+    self.window:setHeight(self.buttonSize + self.window:titleBarHeight())
+    self.window.panelRef = self
 end
 
 function MiniToolkitPanel:updateZoneData()
@@ -40,6 +173,29 @@ function MiniToolkitPanel:updateZoneData()
         AdminFence.selectedIndex = 0
     end
 
+
+    self:refreshButtons()
+end
+
+-----------------------            ---------------------------
+function MiniToolkitPanel.prevZone()
+    local zones = NonPvpZone.getAllZones()
+    local total = zones:size()
+    if total == 0 then return end
+    AdminFence.selectedIndex = (AdminFence.selectedIndex - 1 + total) % total
+    AdminFence.selected = zones:get(AdminFence.selectedIndex)
+end
+
+function MiniToolkitPanel.nextZone()
+    local zones = NonPvpZone.getAllZones()
+    local total = zones:size()
+    if total == 0 then return end
+    AdminFence.selectedIndex = (AdminFence.selectedIndex + 1) % total
+    AdminFence.selected = zones:get(AdminFence.selectedIndex)
+end
+-----------------------            ---------------------------
+function MiniToolkitPanel:update()
+    print('update')
     for _, row in pairs(self.rows) do
         for _, btn in ipairs(row) do
             if btn.tooltipFunc then
@@ -50,304 +206,121 @@ function MiniToolkitPanel:updateZoneData()
             end
         end
     end
-
     self:refreshButtons()
 end
 
-function MiniToolkitPanel:addFeature(textFunc, callback, sprite, colorFunc, rowIndex)
-    rowIndex = rowIndex or 1
-    self.rows[rowIndex] = self.rows[rowIndex] or {}
-    local btn = {
-        textFunc = textFunc,
-        callback = callback,
-        sprite = sprite,
-        colorFunc = colorFunc,
-        active = false
-    }
-    table.insert(self.rows[rowIndex], btn)
+function MiniToolkitPanel:close()
+    if self.window then
+        self.window:close()
+        self.window = nil
+    end
 end
 
-function MiniToolkitPanel:refreshButtons()
-    if not AdminFence.window then return end
+function MiniToolkitPanel:isVisible()
+    return self.window ~= nil
+end
 
-    for _, child in ipairs(AdminFence.window:getChildren()) do
-        if child ~= AdminFence.window.closeButton then
-            AdminFence.window:removeChild(child)
+function MiniToolkitPanel:show()
+    if not self.window then
+        self:buildWindow()
+        self:refreshButtons()
+    end
+end
+
+function MiniToolkitPanel:hide()
+    self:close()
+end
+
+function MiniToolkitPanel:clearRow(rowIndex)
+    if self.rows[rowIndex] then
+        self.rows[rowIndex] = nil
+        self:refreshButtons()
+    end
+end
+
+function MiniToolkitPanel:toggleRow(rowIndex)
+    if self.rows[rowIndex] then
+        self.rows[rowIndex] = nil
+    else
+        self.rows[rowIndex] = {}
+    end
+    self:refreshButtons()
+end
+
+function MiniToolkitPanel:toggleFeature(featureId, targetRow)
+    targetRow = targetRow or 2
+    
+    --print("Toggling feature: " .. featureId .. ", current active: " .. tostring(self.activeFeature))
+    
+    if self.activeFeature == featureId then
+    
+        --print("Hiding feature: " .. featureId)
+        self.rows[targetRow] = nil
+        self.activeFeature = nil
+    else
+    
+        --print("Switching to feature: " .. featureId)
+        self.rows[targetRow] = nil  
+        self.activeFeature = featureId
+        self.rows[targetRow] = {} 
+        
+        if self.featureCallbacks and self.featureCallbacks[featureId] then
+            self.featureCallbacks[featureId](self, targetRow)
         end
     end
-
-    local th = AdminFence.window:titleBarHeight()
-    local yOffset = th
-    local maxWidth = 0
-
-    for _, row in ipairs(self.rows) do
+    
+    for i, row in pairs(self.rows) do
         if row then
-            local xOffset = 4
-            for _, btn in ipairs(row) do
-                if btn then
-                    local b = ISButton:new(xOffset, yOffset, self.buttonSize, self.buttonSize, "", nil, nil)
-                    b:initialise()
-                    b.borderColor = {r=0,g=0,b=0,a=0}
-
-                    local bgColor
-                    if type(btn.activeColor) == "function" then
-                        bgColor = btn.activeColor()
-                    else
-                        bgColor = btn.activeColor
-                    end
-
-                    b.backgroundColor = bgColor or {r=0,g=0,b=0,a=0}
-                    b.backgroundColorMouseOver = {r=0,g=1,b=0,a=1}
-
-                    if btn.sprite then b:setImage(getTexture(btn.sprite)) end
-                    if btn.tooltip then b:setTooltip(btn.tooltip) end
-
-                    b:setOnClick(function(button)
-                        if btn.toggle then
-                            btn.active = not btn.active
-                            local newColor = type(btn.activeColor) == "function" and btn.activeColor() or btn.activeColor
-                            button.backgroundColor = newColor or {r=0,g=0,b=0,a=0}
-                        end
-                        if btn.callback then btn.callback() end
-                        self:updateZoneData()
-                    end)
-
-                    AdminFence.window:addChild(b)
-                    xOffset = xOffset + self.buttonSize + self.spacing
-                end
-            end
-            maxWidth = math.max(maxWidth, xOffset + 4)
-            yOffset = yOffset + self.buttonSize + self.spacing
+            --print("Row " .. i .. " has " .. #row .. " buttons")
         end
     end
-
-    AdminFence.window:setWidth(maxWidth)
-    AdminFence.window:setHeight(yOffset + 4)
-
-    if AdminFence.window.NewTitle and AdminFence.window.NewTitle ~= "" then
-        self:setTitle(AdminFence.window.NewTitle)
-    end
+    
+    self:refreshButtons()
 end
 
-function MiniToolkitPanel:buildWindow()
-    local minWidth = math.max(160, #self.title*8 + 50)
-    AdminFence.panel = ISCollapsableWindow:new(self.x, self.y, minWidth+15, self.buttonSize + 20)
-    AdminFence.panel.collapseButton = nil
-
-    function AdminFence.panel:createChildren()
-        ISCollapsableWindow.createChildren(self)
-        if self.collapseButton then
-            self:removeChild(self.collapseButton)
-            self.collapseButton = nil
-        end
-        if self.closeButton then
-           -- self.closeButton:setVisible(false);
-            self:removeChild(self.closeButton)
-            self.closeButton = nil
-        end
-    end
-
-    function AdminFence.panel:update()
-        ISCollapsableWindow.update(self)
-        if self.panelRef and self.panelRef.onUpdate then
-            self.panelRef:onUpdate()
-        end
-    end
-
-    AdminFence.panel:initialise()
-    if AdminFence.panel.closeButton then
-
-        AdminFence.panel.closeButton:setVisible(false);
-    end
-    AdminFence.panel:addToUIManager()
-    AdminFence.panel.resizable = false
-    AdminFence.panel:setTitle(self.title)
-    AdminFence.panel.defaultTitle = self.title
-    AdminFence.panel:setHeight(self.buttonSize + AdminFence.panel:titleBarHeight())
-    AdminFence.panel.panelRef = self
-    AdminFence.window = AdminFence.panel
+function MiniToolkitPanel:addFeatureCallback(featureId, callback)
+    self.featureCallbacks = self.featureCallbacks or {}
+    self.featureCallbacks[featureId] = callback
 end
 
-function MiniToolkitPanel:onUpdate()
-    self.updateTimer = (self.updateTimer or 0) + 1
-    if self.updateTimer < (self.updateInterval or 30) then return end
-    self.updateTimer = 0
-
-    local zones = NonPvpZone.getAllZones()
-    local total = zones:size()
-    local needsRefresh = false
-
-    if total ~= (self.lastZoneCount or 0) then
-        self.lastZoneCount = total
-        needsRefresh = true
-    end
-
-    if AdminFence.selectedIndex ~= (self.lastSelectedIndex or 0) then
-        self.lastSelectedIndex = AdminFence.selectedIndex or 0
-        needsRefresh = true
-    end
-
-    local selectedValid = AdminFence.selected and NonPvpZone.getAllZones():contains(AdminFence.selected)
-    if not selectedValid then
-        AdminFence.selected = nil
-        needsRefresh = true
-    end
-
-    if needsRefresh then
-        self:updateZoneData()
-    end
-end
+MiniToolkitPanel.instances = MiniToolkitPanel.instances or {}
 
 function MiniToolkitPanel.Launch()
     local pl = getPlayer()
     if not pl then return end
-
-    if MiniToolkitPanel.panel1 and AdminFence.window then
-        AdminFence.window:close()
-        AdminFence.window = nil
+    
+    if MiniToolkitPanel.panel1 and MiniToolkitPanel.panel1:isVisible() then
+        MiniToolkitPanel.panel1:close()
         MiniToolkitPanel.panel1 = nil
         return
     end
-
+    
     MiniToolkitPanel.panel1 = MiniToolkitPanel:new(getCore():getScreenWidth() / 3, getCore():getScreenHeight() / 3, 200, 100, "Mini Toolkit")
-    MiniToolkitPanel.panel1:updateZoneData()
-
-    function MiniToolkitPanel.prevZone()
-        local zones = NonPvpZone.getAllZones()
-        local total = zones:size()
-        if total == 0 then return end
-        AdminFence.selectedIndex = (AdminFence.selectedIndex - 1 + total) % total
-        AdminFence.selected = zones:get(AdminFence.selectedIndex)
-    end
-
-    function MiniToolkitPanel.nextZone()
-        local zones = NonPvpZone.getAllZones()
-        local total = zones:size()
-        if total == 0 then return end
-        AdminFence.selectedIndex = (AdminFence.selectedIndex + 1) % total
-        AdminFence.selected = zones:get(AdminFence.selectedIndex)
-    end
-
-    local row = 2
-
-    MiniToolkitPanel.panel1:addFeature( 
-        function() return "AdminFence" end,
-        function()
-            if MiniToolkitPanel.panel1.rows[row] then
-                MiniToolkitPanel.panel1.rows[row] = nil
-                MiniToolkitPanel.panel1:setTitle("Mini Toolkit")
-            else
-                MiniToolkitPanel.panel1.rows[row] = {}
-
-                MiniToolkitPanel.panel1:addFeature(
-                    function()
-                        if AdminFence.selected then
-                            return "Teleport to Zone " .. AdminFence.selected:getX() .. "," .. AdminFence.selected:getY()
-                        else
-                            return "Teleport (No Zone Selected)"
-                        end
-                    end,
-                    function()
-                        if AdminFence.selected then
-                            SendCommandToServer("/teleportto " .. AdminFence.selected:getX() .. "," .. AdminFence.selected:getY() .. ",0")
-                            pl:playSoundLocal("RemoveBarricadeMetal")
-                        end
-                    end,
-                    "media/ui/LootableMaps/map_sun.png",
-                    nil,
-                    row
-                )
-
-                MiniToolkitPanel.panel1:addFeature(
-                    function() return "Add Fence" end,
-                    function()
-                        if AdminFence.selected then
-                            AdminFence.setZoneFence(AdminFence.selected, true)
-                        end
-                    end,
-                    "media/ui/LootableMaps/map_medcross.png",
-                    nil,
-                    row
-                )
-
-                MiniToolkitPanel.panel1:addFeature(
-                    function() return "Remove Fence" end,
-                    function()
-                        if AdminFence.selected then
-                            AdminFence.setZoneFence(AdminFence.selected, false)
-                            pl:playSoundLocal("ForkBreak")
-                        end
-                    end,
-                    "media/ui/LootableMaps/map_garbage.png",
-                    nil,
-                    row
-                )
-
-                MiniToolkitPanel.panel1:addFeature(
-                    function()
-                        return "Zone Recovery " .. (AdminFence.isSafeZoneRecover() and "[ON]" or "[OFF]")
-                    end,
-                    function()
-                        AdminFence.setSafeZoneRecover(not AdminFence.isSafeZoneRecover())
-                    end,
-                    "media/ui/LootableMaps/map_heart.png",
-                    function()
-                        return AdminFence.isSafeZoneRecover() and {r=0.5,g=0.91,b=0.32,a=1} or {r=0.5,g=0,b=0,a=1}
-                    end,
-                    row
-                )
-
-                MiniToolkitPanel.panel1:addFeature(
-                    function() return "Previous Zone" end,
-                    function()
-                        MiniToolkitPanel.prevZone()
-                        if AdminFence.selected then
-                            MiniToolkitPanel.panel1:setTitle("AdminFence: " .. AdminFence.selected:getTitle())
-                            pl:addLineChatElement(AdminFence.selected:getTitle())
-                            pl:playSoundLocal("StakeBreak")
-                        end
-                    end,
-                    "media/ui/LootableMaps/map_arrowwest.png",
-                    nil,
-                    row
-                )
-
-                MiniToolkitPanel.panel1:addFeature(
-                    function() return "Next Zone" end,
-                    function()
-                        MiniToolkitPanel.nextZone()
-                        if AdminFence.selected then
-                            MiniToolkitPanel.panel1:setTitle("AdminFence: " .. AdminFence.selected:getTitle())
-                            pl:addLineChatElement(AdminFence.selected:getTitle())
-                            pl:playSoundLocal("StakeBreak")
-                        end
-                    end,
-                    "media/ui/LootableMaps/map_arroweast.png",
-                    nil,
-                    row
-                )
-            end
-            MiniToolkitPanel.panel1:refreshButtons()
-        end
-    )
-
-    local trapBtnRow = MiniToolkitPanel.panel1.rows[1]
-    if trapBtnRow and trapBtnRow[1] then
-        trapBtnRow[1].sprite = "media/ui/LootableMaps/map_trap.png"
-    end
-    MiniToolkitPanel.panel1:refreshButtons()
-
-
+    table.insert(MiniToolkitPanel.instances, MiniToolkitPanel.panel1)
+    MiniToolkitPanel:updateZoneData()
     MiniToolkitPanel.panel1:addFeature(
+        function() return "Admin Fence" end,
         function()
-            return "Zone Visibility " .. tostring(pl:isSeeNonPvpZone())
+            MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
         end,
-        function() pl:setSeeNonPvpZone(not pl:isSeeNonPvpZone()) end,
-        "media/ui/LootableMaps/map_target.png",
+        "media/ui/LootableMaps/map_trap.png",
         nil,
-        1
+        1,
+        "AdminFenceUI"
     )
-
+    
+    MiniToolkitPanel.panel1:addFeature(
+        function() return "Under Construction" end,
+        function()
+            MiniToolkitPanel.panel1:toggleFeature("feature2", 2)
+        end,
+        "media/ui/LootableMaps/map_medcross.png",
+        nil,
+        1,
+        "feature2"
+    )
+    -----------------------            ---------------------------
+    
     local cred = "Modded by:\nGlytch3r\n\nCommissioned by:\nProject One/Life Server"
     MiniToolkitPanel.panel1:addFeature(
         function() return "Credits" end,
@@ -359,7 +332,7 @@ function MiniToolkitPanel.Launch()
         nil,
         1
     )
-
+    
     MiniToolkitPanel.panel1:addFeature(
         function() return "Exit" end,
         function()
@@ -369,5 +342,215 @@ function MiniToolkitPanel.Launch()
         nil,
         1
     )
+    -----------------------            ---------------------------
+    MiniToolkitPanel.panel1:addFeatureCallback("AdminFenceUI", function(panel, row)
 
+
+        panel:addFeature(
+            function() return "Zone Visibility " .. tostring(pl:isSeeNonPvpZone()) end,
+            function()
+                pl:setSeeNonPvpZone(not pl:isSeeNonPvpZone()) 
+                MiniToolkitPanel:updateZoneData()
+                MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
+                MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
+            end,
+            "media/ui/LootableMaps/map_target.png",
+            function()
+                return pl:isSeeNonPvpZone() and {r=0.5,g=0.91,b=0.32,a=1} or {r=0.5,g=0,b=0,a=1}
+            end,
+            row
+        )
+
+
+
+
+        panel:addFeature(
+            function()
+                if AdminFence.selected then
+                    return "Teleport to Zone " .. AdminFence.selected:getX() .. "," .. AdminFence.selected:getY()
+                else
+                    return "Teleport (No Zone Selected)"
+                end
+            end,
+            function()
+                if AdminFence.selected then
+                    SendCommandToServer("/teleportto " .. AdminFence.selected:getX() .. "," .. AdminFence.selected:getY() .. ",0")
+                    pl:playSoundLocal("RemoveBarricadeMetal")
+                end
+            end,
+            "media/ui/LootableMaps/map_asterisk.png",
+            nil,
+            row
+        )
+
+        panel:addFeature(
+            function() return "Add Fence" end,
+            function()
+                if AdminFence.selected then
+                    AdminFence.setZoneFence(AdminFence.selected, true)
+                end
+            end,
+            "media/ui/LootableMaps/map_medcross.png",
+            nil,
+            row
+        )
+
+        panel:addFeature(
+            function() return "Remove Fence" end,
+            function()
+                if AdminFence.selected then
+                    AdminFence.setZoneFence(AdminFence.selected, false)
+                    pl:playSoundLocal("ForkBreak")
+                end
+            end,
+            "media/ui/LootableMaps/map_garbage.png",
+            nil,
+            row
+        )
+        
+        panel:addFeature(
+            function()
+                return "Zone Recovery " .. (AdminFence.isSafeZoneRecover() and "[ON]" or "[OFF]")
+            end,
+            function()
+                AdminFence.setSafeZoneRecover(not AdminFence.isSafeZoneRecover())
+                MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
+                MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
+            end,
+            "media/ui/LootableMaps/map_heart.png",
+            function()
+                return AdminFence.isSafeZoneRecover() and {r=0.5,g=0.91,b=0.32,a=1} or {r=0.5,g=0,b=0,a=1}
+            end,
+            row
+        )
+
+        panel:addFeature(
+            function() return "Previous Zone" end,
+            function()
+                MiniToolkitPanel.prevZone()
+                if AdminFence.selected then
+                    MiniToolkitPanel.panel1:setTitle("AdminFence: " .. AdminFence.selected:getTitle())
+                    pl:addLineChatElement(AdminFence.selected:getTitle())
+                    pl:playSoundLocal("StakeBreak")
+                end
+            end,
+            "media/ui/LootableMaps/map_arrowwest.png",
+            nil,
+            row
+        )
+
+        panel:addFeature(
+            function() return "Next Zone" end,
+            function()
+                MiniToolkitPanel.nextZone()
+                if AdminFence.selected then
+                    MiniToolkitPanel.panel1:setTitle("AdminFence: " .. AdminFence.selected:getTitle())
+                    pl:addLineChatElement(AdminFence.selected:getTitle())
+                    pl:playSoundLocal("StakeBreak")
+                end
+            end,
+            "media/ui/LootableMaps/map_arroweast.png",
+            nil,
+            row
+        )
+    end)
+    
+    MiniToolkitPanel.panel1:addFeatureCallback("feature2", function(panel, targetRow)
+      
+        panel:addFeature(           
+            function() return "Demo Function 1" end,
+            function()
+                pl:getCell():addLamppost(IsoLightSource.new(pl:getX(), pl:getY(), pl:getZ(), 255, 255, 255, 255))               
+                pl:addLineChatElement("Demo Function" .. tostring(i)..": Only you can see this local light")
+            end,
+            "media/ui/Glytch3r_1.png",
+            nil,
+            targetRow
+        )
+       
+        panel:addFeature(
+            function() return "Demo Function 2" end,
+            function()
+
+                pl:setBumpType("pushedbehind");  
+                pl:setVariable("BumpFall", true);
+                pl:setVariable("BumpFallType", "pushedbehind");  
+                
+                getSoundManager():PlayWorldSound('ZombieSurprisedPlayer', pl:getSquare(), 0, 5, 5, false);
+                pl:addLineChatElement("Demo Function" .. tostring(i)..": Incase you get animation stuck this will help you escape")
+
+            end,
+            "media/ui/Glytch3r_2.png",
+
+            nil,
+            targetRow
+        )
+        panel:addFeature(
+            function() return "Demo Function 3" end,
+            function()
+                getSoundManager():PlayWorldSound('ZombieSurprisedPlayer', pl:getSquare(), 0, 5, 5, false);
+                pl:addLineChatElement("Demo Function" .. tostring(i)..": Nearby players can hear that even if youre invi")
+            end,
+            "media/ui/Glytch3r_3.png",
+            nil,
+            targetRow
+        )
+
+        panel:addFeature(
+            function() return "Demo Function 4" end,
+            function()
+                local args = { x = pl:getX(), y = pl:getY(), z = pl:getZ() }
+                sendClientCommand(pl, 'object', 'addExplosionOnSquare', args)
+                pl:addLineChatElement("Demo Function" .. tostring(i)..": Boom!")
+            end,
+            "media/ui/Glytch3r_4.png",
+
+            nil,
+            targetRow
+        )
+        panel:addFeature(
+            function() return "Demo Function 5" end,
+            function()
+                local rad =8
+                local cell = pl:getCell()
+                local x, y, z = pl:getX(), pl:getY(), pl:getZ()
+                for xDelta = -rad, rad do
+                    for yDelta = -rad, rad do
+                        local sq = cell:getOrCreateGridSquare(x + xDelta, y + yDelta, z)
+                        for i=0, sq:getMovingObjects():size()-1 do
+                            local zed = sq:getMovingObjects():get(i)
+                            if zed and instanceof(zed, "IsoZombie") then
+                                zed:setSkeleton(not zed:isSkeleton());          
+                            end
+                        end
+                    end
+                end
+
+                pl:addLineChatElement("Demo Function" .. tostring(i)..": Glytch3r's Minions")
+            end,
+            "media/ui/Glytch3r_5.png",
+            nil,
+            targetRow
+        )
+    end)
+    MiniToolkitPanel.panel1:refreshButtons()
+    MiniToolkitPanel:updateZoneData()
+end
+
+function MiniToolkitPanel.updateAll()
+    for i, instance in ipairs(MiniToolkitPanel.instances) do
+        if instance and instance:isVisible() then
+            instance:update()
+        else
+            table.remove(MiniToolkitPanel.instances, i)
+        end
+    end
+end
+
+function MiniToolkitPanel.getInstance(index)
+    return MiniToolkitPanel.instances[index or 1]
+end
+
+function MiniToolkitPanel.getMainPanel()
+    return MiniToolkitPanel.panel1
 end
