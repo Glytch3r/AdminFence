@@ -38,6 +38,9 @@ function AdminFence.addFence(sprName, xOrSq, y, z)
 
 end
 
+
+
+
 --AdminFence.delFence(sq)
 --AdminFence.delFence(x, y, z)
 function AdminFence.delFence(xOrSq, y, z)

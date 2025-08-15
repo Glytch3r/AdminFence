@@ -1,6 +1,6 @@
 MiniToolkitPanel = MiniToolkitPanel or {}
 MiniToolkitPanel.__index = MiniToolkitPanel
-
+  
 function MiniToolkitPanel:setTitle(newTitle) 
     if self.window then
         self.window:setTitle(newTitle or self.title)
@@ -288,7 +288,20 @@ MiniToolkitPanel.instances = MiniToolkitPanel.instances or {}
 function MiniToolkitPanel.Launch()
     local pl = getPlayer()
     if not pl then return end
-    
+
+
+    if AdminFence.AreaMarkers then
+        AdminFence.delAreaMarkers(AdminFence.AreaMarkers)
+        AdminFence.AreaMarkers = {}
+    end
+
+
+
+    AdminFence.FirstPoint = nil
+    AdminFence.SecondPoint = nil
+    AdminFence.BuildStr = "Stand on Starting Point"
+    AdminFence.fencedTitle = nil
+    AdminFence.stage = 0
     if MiniToolkitPanel.panel1 and MiniToolkitPanel.panel1:isVisible() then
         MiniToolkitPanel.panel1:close()
         MiniToolkitPanel.panel1 = nil
@@ -297,7 +310,14 @@ function MiniToolkitPanel.Launch()
     
     MiniToolkitPanel.panel1 = MiniToolkitPanel:new(getCore():getScreenWidth() / 3, getCore():getScreenHeight() / 3, 200, 100, "Mini Toolkit")
     table.insert(MiniToolkitPanel.instances, MiniToolkitPanel.panel1)
+    function MiniToolkitPanel.step()
+        AdminFence.AreaSq = nil
+        MiniToolkitPanel:updateZoneData()
+        MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
+        MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
+    end
     MiniToolkitPanel:updateZoneData()
+
     MiniToolkitPanel.panel1:addFeature(
         function() return "Admin Fence" end,
         function()
@@ -314,7 +334,7 @@ function MiniToolkitPanel.Launch()
         function()
             MiniToolkitPanel.panel1:toggleFeature("feature2", 2)
         end,
-        "media/ui/LootableMaps/map_medcross.png",
+        "media/ui/LootableMaps/map_skull.png",
         nil,
         1,
         "feature2"
@@ -350,9 +370,7 @@ function MiniToolkitPanel.Launch()
             function() return "Zone Visibility " .. tostring(pl:isSeeNonPvpZone()) end,
             function()
                 pl:setSeeNonPvpZone(not pl:isSeeNonPvpZone()) 
-                MiniToolkitPanel:updateZoneData()
-                MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
-                MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
+                MiniToolkitPanel.step()
             end,
             "media/ui/LootableMaps/map_target.png",
             function()
@@ -360,7 +378,6 @@ function MiniToolkitPanel.Launch()
             end,
             row
         )
-
 
 
 
@@ -394,7 +411,8 @@ function MiniToolkitPanel.Launch()
             nil,
             row
         )
-
+        -----------------------            ---------------------------
+        
         panel:addFeature(
             function() return "Remove Fence" end,
             function()
@@ -407,15 +425,39 @@ function MiniToolkitPanel.Launch()
             nil,
             row
         )
-        
+
+        local thisZone = NonPvpZone.getNonPvpZone(pl:getX(), pl:getY())
+        local zoneTitle = "" 
+
+        if thisZone then
+           zoneTitle = thisZone:getTitle()
+        end
+
+        panel:addFeature(
+            function() return "Remove Fenced Zone\n"..   tostring(zoneTitle) end,
+            function()
+                if thisZone and zoneTitle then
+                    AdminFence.setZoneFence(zoneTitle, false)
+                    NonPvpZone.removeNonPvpZone(zoneTitle);
+                    pl:playSoundLocal("BreakBarricadeMetal")
+                    pl:addLineChatElement(tostring(zoneTitle).." Deleted")
+                else
+                    pl:addLineChatElement("Stand on a zone to use this button")
+                end
+                MiniToolkitPanel.step()
+            end,
+            "media/ui/LootableMaps/map_garbage.png",
+            nil,
+            row
+        )
+        -----------------------            ---------------------------
         panel:addFeature(
             function()
                 return "Zone Recovery " .. (AdminFence.isSafeZoneRecover() and "[ON]" or "[OFF]")
             end,
             function()
                 AdminFence.setSafeZoneRecover(not AdminFence.isSafeZoneRecover())
-                MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
-                MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
+     
             end,
             "media/ui/LootableMaps/map_heart.png",
             function()
@@ -438,6 +480,7 @@ function MiniToolkitPanel.Launch()
             nil,
             row
         )
+        
 
         panel:addFeature(
             function() return "Next Zone" end,
@@ -453,8 +496,101 @@ function MiniToolkitPanel.Launch()
             nil,
             row
         )
+
+  
+
+        if AdminFence.fencedTitle and AdminFence.FirstPoint and AdminFence.SecondPoint  then
+            AdminFence.FirstPoint  = nil
+            AdminFence.SecondPoint = nil
+            AdminFence.fencedTitle = nil
+            AdminFence.BuildStr = "Stand on Starting Point"
+        end
+        local buildIco = "media/ui/XBOX_A.png"
+        local point1 = AdminFence.FirstPoint  or nil
+        local point2 = AdminFence.SecondPoint or nil
+        
+        if point2 and point1 and not AdminFence.fencedTitle then
+            AdminFence.stage = 3
+            buildIco = "media/ui/LootableMaps/map_diamond.png"
+        elseif point1 and not point2 and not AdminFence.fencedTitle then
+            AdminFence.stage = 2
+            buildIco = "media/ui/XBOX_B.png"
+        elseif not point1 and not point2 and not AdminFence.fencedTitle then
+            AdminFence.stage = 1
+            buildIco = "media/ui/XBOX_A.png"
+        end
+            
+        if AdminFence.stage == 0 then
+                    
+            if AdminFence.AreaMarkers then
+                AdminFence.delAreaMarkers(AdminFence.AreaMarkers)
+                AdminFence.AreaMarkers = {}
+            end
+
+        end
+
+        panel:addFeature(
+            function() return "Fenced Zone\n"..tostring(AdminFence.BuildStr) end,
+            function()
+                if AdminFence.stage == 3 then
+                    local point1 = AdminFence.FirstPoint
+                    local point2 = AdminFence.SecondPoint
+                    if point1 and point2 then
+                        local x1, y1 = round(point1:getX()), round(point1:getY())
+                        local x2, y2 = round(point2:getX()), round(point2:getY())
+                        AdminFence.fencedTitle = "Zone #" .. tostring(NonPvpZone.getAllZones():size() + 1) .. " [Fenced]"
+                        NonPvpZone.addNonPvpZone(AdminFence.fencedTitle, x1, y1, x2, y2)
+                        AdminFence.selected = NonPvpZone.getZoneByTitle(AdminFence.fencedTitle)
+                        AdminFence.doFence(x1, y1, x2, y2, pl:getZ(), true)
+                        pl:addLineChatElement("Added: " .. AdminFence.fencedTitle)
+                        pl:playSoundLocal("StakeBreak")
+                    end
+                    AdminFence.stage = 0
+                    AdminFence.FirstPoint = nil
+                    AdminFence.SecondPoint = nil
+                    AdminFence.fencedTitle = nil
+                    AdminFence.BuildStr = "Stand on Starting Point"
+                    if AdminFence.AreaMarkers then
+                        AdminFence.delAreaMarkers(AdminFence.AreaMarkers)
+                        AdminFence.AreaMarkers = {}
+                    end
+                    MiniToolkitPanel.step()
+
+                elseif AdminFence.stage == 2 then
+                    AdminFence.SecondPoint = pl:getCurrentSquare()
+                    local p1 = AdminFence.FirstPoint
+                    local p2 = AdminFence.SecondPoint
+                    if p1 and p2 then
+                        local x1, y1 = round(p1:getX()), round(p1:getY())
+                        local x2, y2 = round(p2:getX()), round(p2:getY())
+                        AdminFence.AreaSq = AdminFence.getFenceEdgeSquares(x1, y1, x2, y2)
+                        if AdminFence.AreaSq then
+                            AdminFence.AddAreaMarkers(AdminFence.AreaSq)
+                        end
+                        AdminFence.BuildStr = "Press to Build"
+                        AdminFence.stage = 3
+                    end
+                    MiniToolkitPanel.step()
+
+                elseif AdminFence.stage == 1 then
+                    AdminFence.FirstPoint = pl:getCurrentSquare()
+                    AdminFence.BuildStr = "Stand on Second Point"
+                    AdminFence.stage = 2
+                    MiniToolkitPanel.step()
+                end
+            end,
+            tostring(buildIco),
+            nil,
+            row
+        )
+
+
+
+
     end)
     
+    
+    -----------------------            ---------------------------
     MiniToolkitPanel.panel1:addFeatureCallback("feature2", function(panel, targetRow)
       
         panel:addFeature(           
@@ -532,6 +668,7 @@ function MiniToolkitPanel.Launch()
             nil,
             targetRow
         )
+        -----------------------            ---------------------------
     end)
     MiniToolkitPanel.panel1:refreshButtons()
     MiniToolkitPanel:updateZoneData()
@@ -553,4 +690,46 @@ end
 
 function MiniToolkitPanel.getMainPanel()
     return MiniToolkitPanel.panel1
+end
+
+-----------------------            ---------------------------
+function AdminFence.getFenceEdgeSquares(x1, y1, x2, y2)
+    local squares = {}
+    for x = x1, x2 do
+        for y = y1, y2 do
+            if x == x1 or x == x2 or y == y1 or y == y2 then
+                local sq = getCell():getGridSquare(x, y, 0)
+                if sq then
+                    table.insert(squares, sq)
+                end
+            end
+        end
+    end
+    return squares
+end
+
+function AdminFence.AddAreaMarkers(edgeSquares)    
+    AdminFence.AreaMarkers = {}
+    for _, sq in ipairs(edgeSquares) do
+        local marker = getWorldMarkers():addGridSquareMarker(
+            "circle_center",
+            "circle_only_highlight",
+            sq,
+            1, 1, 1,
+            true,
+            1
+        )
+        table.insert(AdminFence.AreaMarkers, marker)
+    end
+    return AdminFence.AreaMarkers
+end
+
+function AdminFence.delAreaMarkers(AreaMarkers)
+    AreaMarkers = AreaMarkers or AdminFence.AreaMarkers or nil
+    for _, marker in ipairs(AreaMarkers) do
+        if marker then
+            marker:remove()
+        end
+    end
+    AdminFence.AreaMarkers = nil
 end
