@@ -1,0 +1,8 @@
+Sandbox_EN = {
+    Sandbox_AdminFence = "Admin Fence",
+
+	Sandbox_AdminFence_SafeZoneRecover = "Non-PvP Recovery",
+    Sandbox_AdminFence_SafeZoneRecover_tooltip  = "Non-Admin Players God Mode inside Non-PvP Zones\nDo not change manually!\n Use the AdminFence Panel to sync settings",
+
+
+}

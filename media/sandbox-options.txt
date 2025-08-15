@@ -1,0 +1,7 @@
+VERSION = 1,
+
+option AdminFence.SafeZoneRecover
+{
+	type = boolean, default = false,
+	page = AdminFence, translation = AdminFence_SafeZoneRecover,
+}
