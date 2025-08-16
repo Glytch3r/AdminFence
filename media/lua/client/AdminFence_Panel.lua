@@ -1,3 +1,24 @@
+----------------------------------------------------------------
+-----  ▄▄▄   ▄    ▄   ▄  ▄▄▄▄▄   ▄▄▄   ▄   ▄   ▄▄▄    ▄▄▄  -----
+----- █   ▀  █    █▄▄▄█    █    █   ▀  █▄▄▄█  ▀  ▄█  █ ▄▄▀ -----
+----- █  ▀█  █      █      █    █   ▄  █   █  ▄   █  █   █ -----
+-----  ▀▀▀▀  ▀▀▀▀   ▀      ▀     ▀▀▀   ▀   ▀   ▀▀▀   ▀   ▀ -----
+----------------------------------------------------------------
+--                                                            --
+--   Project Zomboid Modding Commissions                      --
+--   https://steamcommunity.com/id/glytch3r/myworkshopfiles   --
+--                                                            --
+--   ▫ Discord  ꞉   glytch3r                                  --
+--   ▫ Support  ꞉   https://ko-fi.com/glytch3r                --
+--   ▫ Youtube  ꞉   https://www.youtube.com/@glytch3r         --
+--   ▫ Github   ꞉   https://github.com/Glytch3r               --
+--                                                            --
+----------------------------------------------------------------
+----- ▄   ▄   ▄▄▄   ▄   ▄   ▄▄▄     ▄      ▄   ▄▄▄▄  ▄▄▄▄  -----
+----- █   █  █   ▀  █   █  ▀   █    █      █      █  █▄  █ -----
+----- ▄▀▀ █  █▀  ▄  █▀▀▀█  ▄   █    █    █▀▀▀█    █  ▄   █ -----
+-----  ▀▀▀    ▀▀▀   ▀   ▀   ▀▀▀   ▀▀▀▀▀  ▀   ▀    ▀   ▀▀▀  -----
+----------------------------------------------------------------
 MiniToolkitPanel = MiniToolkitPanel or {}
 MiniToolkitPanel.__index = MiniToolkitPanel
   
@@ -380,18 +401,21 @@ function MiniToolkitPanel.Launch()
         )
 
 
-
         panel:addFeature(
             function()
                 if AdminFence.selected then
-                    return "Teleport to Zone " .. AdminFence.selected:getX() .. "," .. AdminFence.selected:getY()
+                    local cx,cy=AdminFence.getCenter(AdminFence.selected:getX(), AdminFence.selected:getY(), AdminFence.selected:getX2(), AdminFence.selected:getY2())
+
+                    return "Teleport to Zone " .. tostring(cx) .. "," .. tostring(cy)
                 else
                     return "Teleport (No Zone Selected)"
                 end
             end,
             function()
                 if AdminFence.selected then
-                    SendCommandToServer("/teleportto " .. AdminFence.selected:getX() .. "," .. AdminFence.selected:getY() .. ",0")
+                    local cx,cy=AdminFence.getCenter(AdminFence.selected:getX(), AdminFence.selected:getY(), AdminFence.selected:getX2(), AdminFence.selected:getY2())
+
+                    SendCommandToServer("/teleportto " ..tostring(round(cx)) .. "," .. tostring(round(cy)) .. ",0")
                     pl:playSoundLocal("RemoveBarricadeMetal")
                 end
             end,

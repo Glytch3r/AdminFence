@@ -1,3 +1,22 @@
+----------------------------------------------------------------
+-----  ▄▄▄   ▄    ▄   ▄  ▄▄▄▄▄   ▄▄▄   ▄   ▄   ▄▄▄    ▄▄▄  -----
+----- █   ▀  █    █▄▄▄█    █    █   ▀  █▄▄▄█  ▀  ▄█  █ ▄▄▀ -----
+----- █  ▀█  █      █      █    █   ▄  █   █  ▄   █  █   █ -----
+-----  ▀▀▀▀  ▀▀▀▀   ▀      ▀     ▀▀▀   ▀   ▀   ▀▀▀   ▀   ▀ -----
+----------------------------------------------------------------
+--                                                            --
+--   Project Zomboid Modding Commissions                      --
+--   https://steamcommunity.com/id/glytch3r/myworkshopfiles   --
+--                                                            --
+--   ▫ Discord  ꞉   glytch3r                                  --
+--   ▫ Support  ꞉   https://ko-fi.com/glytch3r                --
+--   ▫ Youtube  ꞉   https://www.youtube.com/@glytch3r         --
+--   ▫ Github   ꞉   https://github.com/Glytch3r               --
+--                                                            --
+----------------------------------------------------------------
+
+
+
 AdminFence = AdminFence or {}
 
 Events.OnGameStart.Add(function()
@@ -17,18 +36,15 @@ Events.OnGameStart.Add(function()
 		end
 		return sledgeHook(self, obj)
 	end
---[[ 	local zoneHook =  ISPvpZonePanel.updateButtons
-	function ISPvpZonePanel:updateButtons()
-		if self.selectedZone then
-			print(self.selectedZone:getTitle())
-			AdminFence.vanillaSelect = self.selectedZone
-		end
-		return zoneHook(self)
-	end
- ]]
 
 end)
 
+--     ▄▄▄▄ ▄▄▄▄   ▄     ▄    ▄▄▄  ▄   ▄  ▄▄▄  ▄   ▄    
+--    █  ▄█ █      █     █   █   ▀ █   █ ▀   █ █   █       
+--    █   ▄ █    █▀▀▀█   █   █   ▄ █▀▀▀█ ▄  ▀█ █ ▀▀▄    
+--     ▀▀▀  ▀    ▀   ▀ ▀▀▀▀▀  ▀▀▀  ▀   ▀  ▀▀▀   ▀▀▀     
+
+----------------------------------------------------------------
 
 --[[ 
 local isWall = obj.spriteProps:Is("WallNW") or obj.spriteProps:Is("WallN") or obj.spriteProps:Is("WallW");
