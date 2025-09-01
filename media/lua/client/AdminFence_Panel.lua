@@ -315,7 +315,7 @@ function MiniToolkitPanel.Launch()
         AdminFence.delAreaMarkers(AdminFence.AreaMarkers)
         AdminFence.AreaMarkers = {}
     end
-
+    
 
 
     AdminFence.FirstPoint = nil
@@ -339,6 +339,7 @@ function MiniToolkitPanel.Launch()
     end
     MiniToolkitPanel:updateZoneData()
 
+
     MiniToolkitPanel.panel1:addFeature(
         function() return "Admin Fence" end,
         function()
@@ -350,6 +351,20 @@ function MiniToolkitPanel.Launch()
         "AdminFenceUI"
     )
     
+
+    if getActivatedMods():contains("AdminRadZone") then
+        MiniToolkitPanel.panel1:addFeature(
+            function() return "Admin Radiation Zone" end,
+            function()
+                AdminRadZonePanel.TogglePanel()
+            end,
+            "media/ui/LootableMaps/map_radiation.png",
+            nil,
+            1,
+            "AdminFenceUI"
+        )
+    end
+
     MiniToolkitPanel.panel1:addFeature(
         function() return "Under Construction" end,
         function()
@@ -386,7 +401,7 @@ function MiniToolkitPanel.Launch()
     -----------------------            ---------------------------
     MiniToolkitPanel.panel1:addFeatureCallback("AdminFenceUI", function(panel, row)
 
-
+        
         panel:addFeature(
             function() return "Zone Visibility " .. tostring(pl:isSeeNonPvpZone()) end,
             function()
@@ -552,7 +567,7 @@ function MiniToolkitPanel.Launch()
             end
 
         end
-
+        
         panel:addFeature(
             function() return "Fenced Zone\n"..tostring(AdminFence.BuildStr) end,
             function()

@@ -30,16 +30,20 @@ function AdminFence.getStateStr()
 	end
 	return state
 end
+local menuTitle = "Admin Fence Panel"
+if getActivatedMods():contains("AdminRadZone") then
+	menuTitle = "Mini Toolkit Panel"
+end
+
 function AdminFence.context(player, context, worldobjects, test)
 	local pl = getSpecificPlayer(player)
 	local sq = clickedSquare
 	if not  AdminFence.isAdm(pl) then return end
 	local title = ""
-	
-	
-	local x, y = round(pl:getX()), round(pl:getY())
 
-	if 	sq:DistTo(x, y) <= 3 or sq == pl:getCurrentSquare() then
+	local x, y = round(pl:getX()), round(pl:getY())
+	if not x or not y then return end
+	if  getCore():getDebug() or	sq:DistTo(x, y) <= 3 or sq == pl:getCurrentSquare() then
 		if not x or not y then return end
 		local isInSafe = NonPvpZone.getNonPvpZone(x, y) or false
 		if isInSafe then
@@ -51,11 +55,10 @@ function AdminFence.context(player, context, worldobjects, test)
 		Main.iconTexture = getTexture("media/ui/LootableMaps/map_trap.png")
 		local opt = ISContextMenu:getNew(context)
 		context:addSubMenu(Main, opt)
-
+	
 		
-		local optTip = opt:addOption("Admin Fence Panel", worldobjects, function()
+		local optTip = opt:addOption("Mini Toolkit Panel", worldobjects, function()
 			MiniToolkitPanel.Launch()
-
 			getSoundManager():playUISound("UIActivateMainMenuItem")
 			context:hideAndChildren()
 		end)
