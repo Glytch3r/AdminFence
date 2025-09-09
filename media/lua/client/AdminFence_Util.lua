@@ -31,7 +31,7 @@ function AdminFence.getStateStr()
 	return state
 end
 local menuTitle = "Admin Fence Panel"
-if getActivatedMods():contains("AdminRadZone") then
+if getActivatedMods():contains("AdminRadZone") or getActivatedMods():contains("AdminWarp") then
 	menuTitle = "Mini Toolkit Panel"
 end
 
@@ -51,6 +51,9 @@ function AdminFence.context(player, context, worldobjects, test)
 		end
 
 		local mainMenu = "AdminFence: "..tostring(title)
+		if getActivatedMods():contains("AdminWarp") or getActivatedMods():contains("AdminRadZone") then
+			mainMenu = "MiniToolkit"
+		end
 		local Main = context:addOptionOnTop(mainMenu)
 		Main.iconTexture = getTexture("media/ui/LootableMaps/map_trap.png")
 		local opt = ISContextMenu:getNew(context)

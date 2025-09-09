@@ -338,8 +338,10 @@ function MiniToolkitPanel.Launch()
         MiniToolkitPanel.panel1:toggleFeature("AdminFenceUI", 2)
     end
     MiniToolkitPanel:updateZoneData()
-
-
+--[[     local toolTitle = "Admin Fence"
+    if getActivatedMods():contains("AdminWarp") or getActivatedMods():contains("AdminRadZone") then
+        toolTitle = "MiniToolkit"
+    end ]]
     MiniToolkitPanel.panel1:addFeature(
         function() return "Admin Fence" end,
         function()
@@ -351,6 +353,18 @@ function MiniToolkitPanel.Launch()
         "AdminFenceUI"
     )
     
+    if getActivatedMods():contains("AdminWarp") then
+        MiniToolkitPanel.panel1:addFeature(
+            function() return "Admin Warp" end,
+            function()
+                AdminWarpPanel.TogglePanel()
+            end,
+            "media/ui/LootableMaps/map_asterisk.png",
+            nil,
+            1,
+            "AdminFenceUI"
+        )
+    end
 
     if getActivatedMods():contains("AdminRadZone") then
         MiniToolkitPanel.panel1:addFeature(
